@@ -27,6 +27,12 @@ jobs:
       - name: Build library
         run: npm run build nest-better-auth
 
+      - name: validate npm token is set, use string length to check
+        run: echo ${{ secrets.NPM_TOKEN }} | wc -c
+        run: echo "NPM_TOKEN is not set"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} 
+
       - name: Semantic release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
