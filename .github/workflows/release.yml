@@ -1,38 +1,49 @@
 name: Release
-
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read # for checkout
 
 jobs:
   release:
+    name: Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      packages: write
+      contents: write # to be able to publish a GitHub release
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
+      id-token: write # to enable use of OIDC for npm provenance
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Use Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org/'
+          node-version: "lts/*"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build library
-        run: npm run build nest-better-auth
-
-      - name: Validate NPM_TOKEN length
-        run: |
-          LEN=$(echo -n "$NPM_TOKEN" | wc -c)
-          echo "Token length: $LEN"
+      - name: Verify npm token (debug)
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Token length: $(echo -n "$NPM_TOKEN" | wc -c)"
+          echo "Token starts with: $(echo "$NPM_TOKEN" | cut -c1-10)"
+          echo "Setting up .npmrc..."
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+          echo "Testing authentication..."
+          npm whoami || echo "Authentication failed"
 
       - name: Semantic release
         env:
@@ -40,9 +51,3 @@ jobs:
           NODE_AUTH_TOKEN: ""
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release 
-
-      - name: Debug whoami
-        if: failure()
-        run: npm whoami
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} 
